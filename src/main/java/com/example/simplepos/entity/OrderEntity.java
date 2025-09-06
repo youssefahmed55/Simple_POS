@@ -21,7 +21,7 @@ public class OrderEntity {
     @Column(name = "total")
     private Double total;
 
-    @JsonManagedReference
+    @JsonManagedReference("order-sales")
     @OneToMany(mappedBy = "orderEntity")
     private List<SaleEntity> saleEntity;
 }

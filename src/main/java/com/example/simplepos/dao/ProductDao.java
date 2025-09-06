@@ -1,16 +1,13 @@
 package com.example.simplepos.dao;
 
 
-import com.example.simplepos.controller.handler.CustomBadRequestException;
-import com.example.simplepos.entity.ModelResponse;
+import com.example.simplepos.entity.ApiResponse;
 import com.example.simplepos.entity.ProductEntity;
 import com.example.simplepos.repo.ProductRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ProductDao {
@@ -18,51 +15,96 @@ public class ProductDao {
     @Autowired
     private ProductRepo productRepo;
 
-    public ModelResponse addProduct(ProductEntity product) {
-        this.productRepo.save(product);
-        return new ModelResponse(1, "Added Successfully");
+    public boolean existsById(Integer id) {
+        return this.productRepo.existsById(id);
     }
 
-    public List<ProductEntity> getAllProducts() {
-        return this.productRepo.findAll();
-    }
-
-    public ModelResponse updateProduct(ProductEntity product) {
-        Optional<ProductEntity> opt = this.productRepo.findById(product.getProductId());
-        if (opt.isPresent()) {
-            this.productRepo.save(product);
-            return new ModelResponse(1, "Updated Successfully");
-        } else {
-            throw new CustomBadRequestException("Updated UnSuccessfully, Not Found Product With This Id", HttpStatus.NOT_FOUND);
+    public ResponseEntity<?> addProduct(ProductEntity product) {
+        if (this.productRepo.existsByBarcode(product.getBarcode())) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse<>(false,
+                            "Barcode already exists: " + product.getBarcode(),
+                            null));
         }
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Product Added Successfully", this.productRepo.save(product))
+        );
+
+
     }
 
-    public ProductEntity getProductById(Integer id) {
-        Optional<ProductEntity> opt = this.productRepo.findById(id);
-        if (opt.isPresent()) {
-            return opt.get();
-        } else {
-            throw new CustomBadRequestException("Not Found Product With This Id", HttpStatus.NOT_FOUND);
-        }
+    public ResponseEntity<?> getAllProducts() {
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "", this.productRepo.findAll())
+        );
     }
 
-    public ProductEntity getProductByBarcode(String barcode) {
-        Optional<ProductEntity> opt = Optional.ofNullable(this.productRepo.findByBarcode(barcode));
-        if (opt.isPresent()) {
-            return opt.get();
-        } else {
-            throw new CustomBadRequestException("Not Found Product With This Barcode", HttpStatus.NOT_FOUND);
-        }
+    public ResponseEntity<?> updateProduct(ProductEntity product) {
+
+        return this.productRepo.findById(product.getProductId())
+                .<ResponseEntity<?>>map(existing -> {
+                    // update fields (you can add more if needed)
+                    if (this.productRepo.existsByBarcode(product.getBarcode())) {
+                        return ResponseEntity.badRequest()
+                                .body(new ApiResponse<>(false,
+                                        "Barcode already exists: " + product.getBarcode(),
+                                        null));
+                    }
+                    existing.setProductName(product.getProductName());
+                    existing.setProductPrice(product.getProductPrice());
+                    existing.setBarcode(product.getBarcode());
+
+                    ProductEntity updated = this.productRepo.save(existing);
+
+                    return ResponseEntity.ok(
+                            new ApiResponse<>(true, "Product updated successfully", updated)
+                    );
+                })
+                .orElseGet(() ->
+                        ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(new ApiResponse<>(false, "Product not found", null))
+                );
+    }
+
+    public ResponseEntity<?> getProductById(Integer id) {
+        return this.productRepo.findById(id)
+                .<ResponseEntity<?>>map(product ->
+                        ResponseEntity.ok(
+                                new ApiResponse<>(true, "Product found", product)
+                        )
+                )
+                .orElseGet(() ->
+                        ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(new ApiResponse<>(false, "Product not found", null))
+                );
+    }
+
+    public ResponseEntity<?> getProductByBarcode(String barcode) {
+        return this.productRepo.findByBarcode(barcode)
+                .<ResponseEntity<?>>map(product ->
+                        ResponseEntity.ok(
+                                new ApiResponse<>(true, "Product found", product)
+                        )
+                )
+                .orElseGet(() ->
+                        ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(new ApiResponse<>(false, "Product not found with this barcode", null))
+                );
     }
 
 
-    public ModelResponse deleteProductById(Integer id) {
-        Optional<ProductEntity> opt = this.productRepo.findById(id);
-        if (opt.isPresent()) {
-            this.productRepo.deleteById(id);
-            return new ModelResponse(1, "Deleted Successfully");
-        } else {
-            throw new CustomBadRequestException("Deleted UnSuccessfully", HttpStatus.NOT_FOUND);
-        }
+    public ResponseEntity<?> deleteProductById(Integer id) {
+        return this.productRepo.findById(id)
+                .<ResponseEntity<?>>map(product -> {
+                    this.productRepo.delete(product);
+                    return ResponseEntity.ok(
+                            new ApiResponse<>(true, "Product deleted successfully", null)
+                    );
+                })
+                .orElseGet(() ->
+                        ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(new ApiResponse<>(false, "Product not found", null))
+                );
     }
 }

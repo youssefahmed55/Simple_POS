@@ -1,16 +1,17 @@
 package com.example.simplepos.dao;
 
 
-import com.example.simplepos.controller.handler.CustomBadRequestException;
 import com.example.simplepos.dto.OrderDto;
+import com.example.simplepos.entity.ApiResponse;
 import com.example.simplepos.entity.OrderEntity;
 import com.example.simplepos.repo.OrderRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+
 
 @Service
 public class OrderDao {
@@ -18,32 +19,56 @@ public class OrderDao {
     @Autowired
     private OrderRepo orderRepo;
 
+    private ProductDao productDao;
 
-    public OrderEntity saveOrder(List<OrderDto> orderDto) {
-        if (orderDto.isEmpty()) {
-            return null;
+    public OrderDao(ProductDao productDao) {
+        this.productDao = productDao;
+    }
+
+    public ResponseEntity<?> saveOrder(List<OrderDto> orderDto) {
+        if (orderDto == null || orderDto.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse<>(false, "Order cannot be empty", null));
         }
-        Double total = 0.0;
-        for (OrderDto order : orderDto) {
-            total += order.getProductPrice();
+
+        for (OrderDto dto : orderDto) {
+            if (!this.productDao.existsById(dto.getProductId())) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new ApiResponse<>(false,
+                                "Product not found with ID: " + dto.getProductId(),
+                                null));
+            }
         }
+
+        double total = orderDto.stream()
+                .mapToDouble(OrderDto::getProductPrice)
+                .sum();
 
         OrderEntity orderEntity = new OrderEntity();
         orderEntity.setTotal(total);
-        return this.orderRepo.save(orderEntity);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Order Saved Successfully", this.orderRepo.save(orderEntity))
+        );
     }
 
-    public List<OrderEntity> getAllOrders() {
-        return this.orderRepo.findAll();
+    public ResponseEntity<?> getAllOrders() {
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "", this.orderRepo.findAll())
+        );
     }
 
-    public OrderEntity getOrderById(Integer id) {
-        Optional<OrderEntity> opt = this.orderRepo.findById(id);
-        if (opt.isPresent()) {
-            return opt.get();
-        } else {
-            throw new CustomBadRequestException("Not Found Order With This Id", HttpStatus.NOT_FOUND);
-        }
+    public ResponseEntity<?> getOrderById(Integer id) {
+        return this.orderRepo.findById(id)
+                .<ResponseEntity<?>>map(product ->
+                        ResponseEntity.ok(
+                                new ApiResponse<>(true, "Order found", product)
+                        )
+                )
+                .orElseGet(() ->
+                        ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body(new ApiResponse<>(false, "Order not found", null))
+                );
     }
 
 

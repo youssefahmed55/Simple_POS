@@ -37,12 +37,12 @@ public class SaleEntity {
     }
 
 
-    @JsonBackReference
+    @JsonBackReference("order-sales")
     @ManyToOne
     @JoinColumn(name = "order_id", insertable = false, updatable = false)
     private OrderEntity orderEntity;
 
-    @JsonBackReference
+    @JsonBackReference("product-sales")
     @ManyToOne
     @JoinColumn(name = "product_id", insertable = false, updatable = false)
     private ProductEntity productEntity;

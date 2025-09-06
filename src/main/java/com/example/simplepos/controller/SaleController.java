@@ -2,13 +2,12 @@ package com.example.simplepos.controller;
 
 
 import com.example.simplepos.dao.SaleDao;
-import com.example.simplepos.entity.SaleEntity;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 
 @RequestMapping(path = "/sales")
 @RestController
@@ -17,7 +16,7 @@ public class SaleController {
     private SaleDao saleDao;
 
     @GetMapping("/sales")
-    public List<SaleEntity> getAllSales() {
+    public ResponseEntity<?> getAllSales() {
         return this.saleDao.getAllSales();
     }
 }

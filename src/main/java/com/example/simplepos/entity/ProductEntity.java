@@ -27,7 +27,7 @@ public class ProductEntity {
     private String barcode;
 
 
-    @JsonManagedReference
+    @JsonManagedReference("product-sales")
     @OneToMany(mappedBy = "productEntity")
     private List<SaleEntity> saleEntity;
 }
